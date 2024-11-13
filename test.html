@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile To-Do App</title>
+    <!-- Google Fonts & Font Awesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(to bottom right, #3a7bd5, #3a6073);
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .time {
+            text-align: center;
+            font-size: 1.6rem;
+            margin-bottom: 15px;
+            color: #ffffff;
+        }
+
+        h2 {
+            text-align: center;
+            color: #ffffff;
+            margin-bottom: 20px;
+        }
+
+        #taskList {
+            list-style: none;
+            padding: 0;
+        }
+
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.25);
+            padding: 10px 15px;
+            margin-bottom: 12px;
+            border-radius: 15px;
+            transition: transform 0.3s ease, background-color 0.3s;
+            cursor: pointer;
+        }
+
+        .task-item:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        .task-item.completed {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        #taskInput {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            margin-top: 20px;
+            outline: none;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #addTaskBtn {
+            margin-top: 15px;
+            width: 100%;
+            padding: 12px;
+            background-color: #3a7bd5;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #addTaskBtn:hover {
+            background-color: #388e3c;
+        }
+
+        .delete-btn {
+            background: transparent;
+            border: none;
+            color: #ff5252;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .delete-btn:hover {
+            color: #ff1744;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            cursor: pointer;
+        }
+
+        .dark-mode {
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .dark-mode .container {
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        .dark-mode h2,
+        .dark-mode .time {
+            color: #ffcc66;
+        }
+
+        /* Adding swipe gesture styles */
+        .swipe-left {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .swipe-left.delete {
+            transform: translateX(-100%);
+        }
+
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="theme-toggle">
+            <i id="themeIcon" class="fa fa-moon fa-2x"></i>
+        </div>
+        <div class="time" id="timeDisplay"></div>
+        <h2>To-Do List</h2>
+        <ul id="taskList"></ul>
+        <input type="text" id="taskInput" placeholder="Add a new task...">
+        <button id="addTaskBtn">Add Task</button>
+    </div>
+
+    <script>
+        // Display live time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('timeDisplay').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        setInterval(updateTime, 1000);
+
+        // Elements
+        const taskList = document.getElementById('taskList');
+        const taskInput = document.getElementById('taskInput');
+        const addTaskBtn = document.getElementById('addTaskBtn');
+
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+        // Render tasks
+        function renderTasks() {
+            taskList.innerHTML = '';
+            tasks.forEach((task, index) => {
+                const li = document.createElement('li');
+                li.className = `task-item ${task.completed ? 'completed' : ''}`;
+                li.innerHTML = `
+                    <span onclick="toggleTask(${index})">${task.text}</span>
+                    <button class="delete-btn" onclick="deleteTask(${index})">❌</button>
+                `;
+                // Add swipe gesture functionality
+                li.addEventListener('touchstart', handleTouchStart, false);
+                li.addEventListener('touchend', handleTouchEnd, false);
+                taskList.appendChild(li);
+            });
+        }
+
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        // Handle swipe start
+        function handleTouchStart(event) {
+            touchStartX = event.changedTouches[0].screenX;
+        }
+
+        // Handle swipe end
+        function handleTouchEnd(event) {
+            touchEndX = event.changedTouches[0].screenX;
+            if (touchStartX - touchEndX > 50) {
+                const taskIndex = [...taskList.children].indexOf(event.target.closest('li'));
+                deleteTask(taskIndex);
+            }
+        }
+
+        // Add a task
+        function addTask() {
+            const taskText = taskInput.value.trim();
+            if (taskText) {
+                tasks.push({ text: taskText, completed: false });
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                renderTasks();
+                taskInput.value = '';
+                notify('Task added!');
+            }
+        }
+
+        // Delete a task
+        function deleteTask(index) {
+            tasks.splice(index, 1);
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            renderTasks();
+            notify('Task deleted!');
+        }
+
+        // Toggle task completion
+        function toggleTask(index) {
+            tasks[index].completed = !tasks[index].completed;
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            renderTasks();
+        }
+
+        // Dark mode toggle
+        const themeIcon = document.getElementById('themeIcon');
+        const container = document.querySelector('.container');
+
+        themeIcon.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            themeIcon.classList.toggle('fa-moon');
+            themeIcon.classList.toggle('fa-sun');
+            updateButtonColor();
+        });
+
+        // Update button color based on mode
+        function updateButtonColor() {
+            if (document.body.classList.contains('dark-mode')) {
+                addTaskBtn.style.backgroundColor = '#333';
+                addTaskBtn.style.color = '#fff';
+            } else {
+                addTaskBtn.style.backgroundColor = '#4caf50';
+                addTaskBtn.style.color = '#fff';
+            }
+        }
+
+       
+
+        addTaskBtn.addEventListener('click', addTask);
+        renderTasks();
+        updateButtonColor();
+    </script>
+</body>
+
+</html>
